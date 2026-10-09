@@ -21,23 +21,28 @@ Sigue estos pasos en tu terminal para poner a marchar el proyecto en tu equipo l
 ```bash
 git clone [https://github.com/TS-UAM26O-JMVH/p04_django.git](https://github.com/TS-UAM26O-JMVH/p04_django.git)
 cd p04_django/proyectos_django/django4/proyecto_django/back_end_django
+```
 
 ### 2. Levantar la base de datos con Docker compose
 asegurate de tener DOcker activo y ejecuta el sigiente comando en la raiz donde se encuentra tu Docker-compose.yml
 ```bash
 sudo docker compuse up -d
+```
 
 ### 3. Activar el entorno virtual
 ```bash
 source venv/bin/activate
+```
 
 ### 4. Aplicar las migraciones de la Base de datos
 ```bash
 python manage.py migrate
+```
 
 ### 5. Iniciar el servidor de desarrollo
 ```bash
 python manage.py runserver
+```
 
 ---
 
@@ -56,7 +61,7 @@ Una vez que el servidor esté corriendo, puedes interactuar con la API de dos fo
 
 ---
 
-👨‍💻 Autor
+## 👨‍💻 Autor
 
 Desarrollado por Juan Valentin.
 
