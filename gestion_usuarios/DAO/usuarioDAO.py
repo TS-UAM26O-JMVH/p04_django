@@ -25,7 +25,7 @@ class UsuarioDAO:
 
     @staticmethod
     def obtener_todos():
-        return Usuario.object.all()
+        return Usuario.objects.all()
 
     #Codigo 22
     @staticmethod
