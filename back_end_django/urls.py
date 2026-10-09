@@ -1,4 +1,5 @@
 #back_end_djando/urls.py
+#Codigo 7
 from django.contrib import admin
 from django.urls import path, include, re_path
 from rest_framework import permissions
