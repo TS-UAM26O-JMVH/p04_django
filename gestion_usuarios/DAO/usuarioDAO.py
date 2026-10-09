@@ -165,3 +165,261 @@ class UsuarioDAO:
 
         except DatabaseError:
             raise ErrorInternoServidor_500()
+
+    #Codigo 26: Esta función se encarga de realizar la actualización completa de un usuario existente
+    @staticmethod
+    def actualizar_usuario(usuario_id, **datos_actualizados):
+        """
+        Actualiza completamente los datos de un usuario.
+        """
+
+        usuario = UsuarioDAO.obtener_usuario_por_id(usuario_id)
+
+        if not usuario:
+            raise UsuarioNoEncontrado_404("Usuario no encontrado.")
+
+        # Validar username duplicado
+        if (
+            "username" in datos_actualizados
+            and datos_actualizados["username"] != usuario.username
+        ):
+            if Usuario.objects.filter(
+                username=datos_actualizados["username"]
+            ).exclude(id=usuario_id).exists():
+                raise ConflictoUsuario_409(
+                    "El nombre de usuario ya está registrado."
+                )
+
+        # Validar email duplicado
+        if (
+            "email" in datos_actualizados
+            and datos_actualizados["email"] != usuario.email
+        ):
+            if Usuario.objects.filter(
+                email=datos_actualizados["email"]
+            ).exclude(id=usuario_id).exists():
+                raise ConflictoUsuario_409(
+                    "El correo electrónico ya está registrado."
+                )
+
+        # Actualizar campos
+        for campo, valor in datos_actualizados.items():
+
+            if campo == "password":
+                usuario.password = make_password(valor)
+            else:
+                setattr(usuario, campo, valor)
+
+        usuario.save()
+
+        return usuario
+
+    #Codigo 28:
+    @staticmethod
+    def eliminar_usuario(pk):
+        """
+        Marca un usuario como eliminado en lugar de eliminarlo físicamente.
+
+        :param pk: ID del usuario a eliminar.
+        :return: Instancia del usuario eliminado.
+        """
+        usuario = UsuarioDAO.obtener_usuario_por_id(pk)
+        # este if es redundante porque obtener_usuario_por_id ya lanza excepción, pero lo dejo
+        if not usuario:
+            raise UsuarioNoEncontrado_404()  # <-- fatal corregido (faltaban paréntesis)
+
+        usuario.is_deleted = True
+        usuario.deleted_at = timezone.now()
+        usuario.save()
+        return usuario
+
+    #Codigo 30: Este método permite modificar selectivamente los campos de un usuario
+    CAMPOS_OPCIONALES = [
+        "username",
+        "password",
+        "email",
+        "first_name",
+        "last_name",
+        "is_active",
+        "is_superuser",
+        "profile_picture",
+        "nationality",
+        "occupation",
+        "date_of_birth",
+        "contact_phone_number",
+        "gender",
+        "address",
+        "address_number",
+        "address_interior_number",
+        "address_complement",
+        "address_neighborhood",
+        "address_zip_code",
+        "address_city",
+        "address_state",
+        "role",
+    ]
+    @staticmethod
+    def actualizar_usuario_parcial(pk, **datos):
+        """
+        Actualiza los datos de un usuario existente de forma parcial.
+
+        :param pk: UUID del usuario a actualizar.
+        :param datos: Diccionario con los campos a modificar.
+        :return: Instancia del usuario actualizado.
+        """
+        usuario = UsuarioDAO.obtener_usuario_por_id(pk)
+        if not usuario:
+            raise UsuarioNoEncontrado_404("Usuario no encontrado.")
+
+        # Verificación de username y email duplicados
+        if "username" in datos and datos["username"] != usuario.username:
+            if Usuario.objects.filter(username=datos["username"]).exclude(id=pk).exists():
+                raise ConflictoUsuario_409("El nombre de usuario ya está registrado.")
+
+        if "email" in datos and datos["email"] != usuario.email:
+            if Usuario.objects.filter(email=datos["email"]).exclude(id=pk).exists():
+                raise ConflictoUsuario_409("El correo electrónico ya está registrado.")
+
+        # Actualización de campos permitidos
+        for campo, valor in datos.items():
+            if campo in UsuarioDAO.CAMPOS_OPCIONALES:
+
+                if campo == "password":
+                    usuario.password = make_password(valor)
+                else:
+                    setattr(usuario, campo, valor)
+
+        # Guardar cambios
+        usuario.save()
+
+        return usuario 
+
+    #Codigo 32: presenta la definicion del metodo restaurar. ESte metodo permite revertir la eliminacion logica de un usuario.
+    @staticmethod
+    def restaurar_usuario(pk):
+        """
+        Restaura un usuario previamente marcado como eliminado lógicamente.
+
+        :param pk: ID del usuario a restaurar.
+        :return: Instancia del usuario restaurado.
+        """
+        usuario = Usuario.objects.filter(id=pk).first()
+        if not usuario:
+            raise UsuarioNoEncontrado_404("Usuario no encontrado.")
+
+        usuario.is_deleted = False
+        usuario.deleted_at = None
+        usuario.save()
+        return usuario 
+
+    #Codigo 34: ESte metodo se encarga de marcar como verificado el correo electronico del usuario
+    @staticmethod
+    def verificar_email(pk):
+        """
+        Verifica el email del usuario especificado por su ID.
+
+        :param pk: ID del usuario a verificar.
+        :return: Instancia del usuario con el email verificado.
+        """
+        usuario = UsuarioDAO.obtener_usuario_por_id(pk)
+
+        # Este if es redundante porque obtener_usuario_por_id ya lanza UsuarioNoEncontrado_404()
+        if not usuario:
+            raise UsuarioNoEncontrado_404("Usuario no encontrado.")
+
+        if usuario.email_verified:
+            raise DatosInvalidos_400("El email ya estaba verificado.")
+
+        usuario.email_verified = True
+        usuario.email_verified_at = timezone.now()
+        usuario.save()
+        return usuario
+
+    #Codigo 36: Este método es el encargado de realizar la desactivación lógica del usuario en el sistema,mdificando su estado.
+    @staticmethod
+    def desactivar_usuario(pk):
+        usuario = UsuarioDAO.obtener_usuario_por_id(pk)
+
+        # Redundante, porque obtener_usuario_por_id ya lanza UsuarioNoEncontrado_404()
+        if not usuario:
+            raise UsuarioNoEncontrado_404("Usuario no encontrado.")
+
+        if usuario.is_active:
+            usuario.is_active = False
+            usuario.save()
+            return usuario
+        else:
+            raise DatosInvalidos_400("El usuario ya estaba desactivado.")
+
+    #Codigo 38_ implementa el metodo para actualizar la contraseña
+    @staticmethod
+    def actualizar_contrasena(pk, current_password, new_password, confirm_password):
+        usuario = UsuarioDAO.obtener_usuario_por_id(pk)
+
+        # Redundante, porque obtener_usuario_por_id ya lanza UsuarioNoEncontrado_404()
+        if not usuario:
+            raise UsuarioNoEncontrado_404("El usuario no existe.")
+
+        # Tu modelo Usuario NO tiene check_password(); usa check_password de Django
+        if not check_password(current_password, usuario.password):
+            raise ValidationError("La contraseña actual no es correcta.")
+
+        serializer = UsuarioContrasenaSerializer(
+            data={
+                "current_password": current_password,
+                "new_password": new_password,
+                "confirm_password": confirm_password,
+            }
+        )
+
+        if not serializer.is_valid():
+            raise ValidationError(serializer.errors)
+
+        usuario.password = make_password(new_password)
+        usuario.save()
+
+        return usuario
+
+    #COdigo 41: implementa metodo reset_password() el cual permite restablecer la contraseña de un usuario 
+    # utilizando un token anteriormente generado y enviado por correo electronico.
+    @staticmethod
+    def reset_password(token, new_password):
+        """Restablece la contraseña usando el token."""
+        usuario = Usuario.objects.filter(reset_password_token=token).first()
+        if not usuario:
+            raise DatosInvalidos_400("Token inválido.")
+
+        if not usuario.reset_password_expires_at or usuario.reset_password_expires_at < timezone.now():
+            raise DatosInvalidos_400("Token inválido o expirado.")
+
+        # Restablece la contraseña y borra el token
+        usuario.password = make_password(new_password)
+        usuario.reset_password_token = None
+        usuario.reset_password_expires_at = None
+        usuario.save()
+        return usuario  
+    @staticmethod
+    def reset_password_request(email):
+        """
+        Genera un token de recuperación de contraseña.
+        """
+
+        usuario = Usuario.objects.filter(
+            email=email,
+            is_deleted=False
+        ).first()
+
+        if not usuario:
+            raise UsuarioNoEncontrado_404()
+
+        usuario.reset_password_token = uuid.uuid4()
+        usuario.reset_password_expires_at = (
+            timezone.now() + timedelta(hours=1)
+        )
+
+        usuario.save()
+
+        return {
+            "token": str(usuario.reset_password_token),
+            "expires_at": usuario.reset_password_expires_at,
+        }
